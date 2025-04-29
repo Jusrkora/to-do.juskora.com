@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Karie's To-Do List</title>
+  <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #a593ab;
+      color: #f3e8ff;
+      text-align: center;
+      padding: 20px;
+      margin: 0;
+    }
+    button, select {
+      padding: 6px 12px;
+      font-size: 14px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    #reset-btn {
+      background-color: #e57373;
+      color: white;
+    }
+    #clear-btn, #clear-completed-btn {
+      background-color: #ba68c8;
+      color: white;
+    }
+    #font-selector {
+      font-size: 14px;
+    }
+    h1 {
+      margin-bottom: 10px;
+    }
+    #level {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+    #xp-bar-container {
+      width: 80%;
+      height: 20px;
+      background-color: #5e3485;
+      border-radius: 10px;
+      margin: 0 auto 20px auto;
+      overflow: hidden;
+      border: 3px solid white;
+    }
+    #xp-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #ba68c8, #8e24aa);
+      transition: width 0.5s;
+    }
+    #new-task, #due-date, #due-time {
+      padding: 10px;
+      font-size: 16px;
+      border: 2px solid #9c27b0;
+      border-radius: 5px;
+      margin-bottom: 10px;
+    }
+    #new-task {
+      width: 60%;
+    }
+    #add-task {
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #9c27b0;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      background: #9e74b3;
+      margin: 10px auto;
+      padding: 15px;
+      font-size: 18px;
+      border-radius: 20px;
+      width: 80%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      border: 3px solid white;
+    }
+    li.white-bg {
+      background: white;
+      color: #5d386b;
+      border: 3px solid #5d386b;
+    }
+    .delete {
+      color: #ff4081;
+      cursor: pointer;
+      font-size: 20px;
+      margin-left: 10px;
+    }
+    #completed-tasks-section {
+      margin-top: 40px;
+      background: #5d386b;
+      padding: 20px;
+      border-radius: 10px;
+      max-height: 300px;
+      overflow-y: auto;
+      border: 3px solid white;
+    }
+    #completed-task-list li {
+      border: 3px solid white;
+    }
+    #bottom-controls {
+      position: fixed;
+      bottom: 10px;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      background: #6c4a7c;
+      padding: 10px;
+      border-top: 2px solid #9c27b0;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Karie's To-Do List</h1>
+  <div id="level">Level: 1 | XP: 0/100</div>
+  <div id="xp-bar-container"><div id="xp-bar"></div></div>
+
+  <input id="new-task" type="text" placeholder="Enter a new task">
+  <input id="due-date" type="date">
+  <input id="due-time" type="time">
+  <button id="add-task">Add Task</button>
+
+  <ul id="task-list"></ul>
+
+  <div id="completed-tasks-section">
+    <h2>Completed Tasks</h2>
+    <ul id="completed-task-list"></ul>
+  </div>
+
+  <div id="bottom-controls">
+    <button id="reset-btn">Reset Level</button>
+    <button id="clear-btn">Clear All Tasks</button>
+    <button id="clear-completed-btn">Clear Completed Tasks</button>
+    <select id="font-selector">
+      <option value="'Segoe UI', sans-serif">Segoe UI</option>
+      <option value="'Courier New', monospace">Courier New</option>
+      <option value="'Arial', sans-serif">Arial</option>
+      <option value="'Comic Sans MS', cursive">Comic Sans</option>
+      <option value="'Times New Roman', serif">Times New Roman</option>
+      <option value="'Patrick Hand', cursive">Patrick Hand</option>
+    </select>
+  </div>
+
+  <script>
+    let xp = parseInt(localStorage.getItem('xp')) || 0;
+    let level = parseInt(localStorage.getItem('level')) || 1;
+
+    const taskInput = document.getElementById('new-task');
+    const taskList = document.getElementById('task-list');
+    const completedTaskList = document.getElementById('completed-task-list');
+    const levelDisplay = document.getElementById('level');
+    const xpBar = document.getElementById('xp-bar');
+
+    function updateLevel() {
+      levelDisplay.textContent = `Level: ${level} | XP: ${xp}/100`;
+      xpBar.style.width = `${xp}%`;
+      localStorage.setItem('xp', xp);
+      localStorage.setItem('level', level);
+    }
+
+    function formatTimeTo12Hour(dateStr, timeStr) {
+      if (!timeStr) return 'No time set';
+      const [hours, minutes] = timeStr.split(':');
+      const date = new Date(`${dateStr}T${hours}:${minutes}`);
+      return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    }
+
+    function gainXP(points, taskText, dueDate, dueTime) {
+      xp += points;
+      const completedTime = new Date();
+      const completedTask = {
+        task: taskText,
+        completedAt: completedTime.toLocaleString([], { hour: 'numeric', minute: '2-digit', hour12: true }),
+        dueDate: dueDate || 'No due date set',
+        dueTime: formatTimeTo12Hour(dueDate, dueTime)
+      };
+
+      let completedTasks = JSON.parse(localStorage.getItem('completedTasks')) || [];
+      completedTasks.unshift(completedTask);
+      localStorage.setItem('completedTasks', JSON.stringify(completedTasks));
+
+      while (xp >= 100) {
+        xp -= 100;
+        level++;
+        alert(`🎉 Level Up! You are now Level ${level}! 🎉`);
+      }
+      updateLevel();
+      loadCompletedTasks();
+    }
+
+    function loadCompletedTasks() {
+      const completedTasks = JSON.parse(localStorage.getItem('completedTasks')) || [];
+      completedTaskList.innerHTML = '';
+      completedTasks.forEach(task => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <div>
+            <strong>${task.task}</strong><br>
+            Due: ${task.dueDate} ${task.dueTime}<br>
+          </div>
+          <div style="border-left: 2px solid white; padding-left: 10px;">
+            <strong>Completed:</strong><br>${task.completedAt}
+          </div>
+        `;
+        completedTaskList.appendChild(li);
+      });
+    }
+
+    function addTask(taskText, dueDate, dueTime) {
+      const li = document.createElement('li');
+      li.innerHTML = `
+        <div>
+          <strong>${taskText}</strong><br>
+          Due: ${dueDate || 'N/A'} ${formatTimeTo12Hour(dueDate, dueTime)}
+        </div>
+        <div>
+          <span class="delete">✔️</span>
+        </div>
+      `;
+      li.querySelector('.delete').addEventListener('click', () => {
+        li.remove();
+        gainXP(20, taskText, dueDate, dueTime);
+      });
+      taskList.insertBefore(li, taskList.firstChild);
+    }
+
+    document.getElementById('add-task').addEventListener('click', () => {
+      const taskText = taskInput.value.trim();
+      const dueDate = document.getElementById('due-date').value;
+      const dueTime = document.getElementById('due-time').value;
+
+      if (taskText !== "") {
+        addTask(taskText, dueDate, dueTime);
+        taskInput.value = "";
+        document.getElementById('due-date').value = "";
+        document.getElementById('due-time').value = "";
+      }
+    });
+
+    document.getElementById('font-selector').addEventListener('change', function () {
+      document.body.style.fontFamily = this.value;
+    });
+
+    document.getElementById('reset-btn').addEventListener('click', () => {
+      if (confirm("Reset XP and Level?")) {
+        xp = 0;
+        level = 1;
+        updateLevel();
+      }
+    });
+
+    document.getElementById('clear-btn').addEventListener('click', () => {
+      if (confirm("Clear all ongoing tasks?")) {
+        taskList.innerHTML = "";
+      }
+    });
+
+    document.getElementById('clear-completed-btn').addEventListener('click', () => {
+      if (confirm("Clear all completed tasks?")) {
+        localStorage.removeItem('completedTasks');
+        loadCompletedTasks();
+      }
+    });
+
+    taskInput.addEventListener('keypress', function (e) {
+      if (e.key === 'Enter') {
+        document.getElementById('add-task').click();
+      }
+    });
+
+    updateLevel();
+    loadCompletedTasks();
+  </script>
+</body>
+</html>
